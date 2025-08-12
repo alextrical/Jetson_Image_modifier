@@ -74,7 +74,8 @@ jobs:
 
     - name: Setup a loop device, expand the partition and mount it
       run: |
-        echo "LOOPDEV=$(sudo losetup -Pf --show jetson-orin-nano-devkit-super_*.img)" >> $GITHUB_ENV
+        LOOPDEV=$(sudo losetup -Pf --show jetson-orin-nano-devkit-super_*.img)
+        echo "LOOPDEV=$LOOPDEV" >> $GITHUB_ENV
         echo "LOOPDEV is set to: $LOOPDEV"
 
         PARTITION=$LOOPDEV"p1"
@@ -86,7 +87,8 @@ jobs:
         sudo e2fsck -fy "$PARTITION"
         sudo resize2fs "$PARTITION"
 
-        echo "MNTPOINT=/mnt/APP" >> $GITHUB_ENV
+        MNTPOINT=/mnt/APP
+        echo "MNTPOINT=$MNTPOINT" >> $GITHUB_ENV
         sudo mkdir -p "$MNTPOINT"
         sudo mount "$PARTITION" "$MNTPOINT"
 
