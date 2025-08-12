@@ -108,6 +108,7 @@ jobs:
           sudo mount --bind /sys /mnt/APP/sys/
           sudo mount --bind /proc /mnt/APP/proc/
           sudo mount --bind /dev/pts /mnt/APP/dev/pts/
+          sudo mount --bind /var/run/docker.sock /mnt/APP/run/docker.sock
 
           # Copy resolv.conf for network access in chroot
           sudo cp /etc/resolv.conf /mnt/APP/etc/resolv.conf.bak
@@ -120,8 +121,10 @@ jobs:
           # Make script executable and run it in chroot
           chmod +x test.sh
           sudo cp test.sh /mnt/APP/tmp/
-          sudo chroot /mnt/APP /tmp/test.sh
           # sudo chroot /mnt/APP /bin/bash -c "ls -l"
+          # sudo chroot /mnt/APP /bin/bash -c "ls -l /var/run"
+          # sudo chroot /mnt/APP /bin/bash -c "ls -l /run"
+          sudo chroot /mnt/APP /tmp/test.sh
 
           # Clean up chroot
           sudo rm -f /mnt/APP/tmp/test.sh
@@ -133,5 +136,7 @@ jobs:
           sudo umount /mnt/APP/dev/ || true
           sudo umount /mnt/APP/sys/ || true
           sudo umount /mnt/APP/proc/ || true
+          sudo umount /mnt/APP/proc/ || true
+          sudo umount /mnt/APP/run/docker.sock || true
     
     # Optionally add steps to commit/push file if required
