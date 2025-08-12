@@ -75,7 +75,7 @@ jobs:
     - name: Setup a loop device, expand the partition and mount it
       run: |
         LOOPDEV=$(sudo losetup -Pf --show jetson-orin-nano-devkit-super_*.img)
-        echo "LOOPDEV=$LOOPDEV" >> $GITHUB_ENV
+        echo "LOOPDEV=${LOOPDEV}" >> $GITHUB_ENV
         echo "LOOPDEV is set to: $LOOPDEV"
 
         PARTITION=$LOOPDEV"p1"
@@ -88,7 +88,7 @@ jobs:
         sudo resize2fs "$PARTITION"
 
         MNTPOINT=/mnt/APP
-        echo "MNTPOINT=$MNTPOINT" >> $GITHUB_ENV
+        echo "MNTPOINT=${MNTPOINT}" >> $GITHUB_ENV
         sudo mkdir -p "$MNTPOINT"
         sudo mount "$PARTITION" "$MNTPOINT"
 
@@ -125,6 +125,12 @@ jobs:
       run: |
         docker pull ghcr.io/music-assistant/server:latest
         docker images -a
+        
+    - name: Stop host docker
+      run: |
+        sudo systemctl stop docker
+        sudo systemctl stop docker.socket
+        sudo systemctl stop containerd
 
     - name: Stat docker data root
       run: |
