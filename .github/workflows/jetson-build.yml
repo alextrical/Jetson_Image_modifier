@@ -90,6 +90,11 @@ jobs:
           MNTPOINT=/mnt/APP
           sudo mkdir -p "$MNTPOINT"
           sudo mount "$PARTITION" "$MNTPOINT"
+
+          #tmp doesn't exist yet, so lets make it
+          mkdir /mnt/APP/tmp
+          sudo chmod 1777 /mnt/APP/tmp
+
           df -h /mnt/APP
 
       - name: Add custom packages to rootfs
