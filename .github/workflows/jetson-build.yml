@@ -74,8 +74,7 @@ jobs:
 
       - name: Setup a loop device, expand the partition and mount it
         run: |
-          LOOPDEV=$(sudo losetup -Pf --show jetson-orin-nano-devkit-super_*.img)
-
+          echo "LOOPDEV=$(sudo losetup -Pf --show jetson-orin-nano-devkit-super_*.img)" >> $GITHUB_ENV
           echo "LOOPDEV is set to: $LOOPDEV"
 
           PARTITION=$LOOPDEV"p1"
@@ -87,7 +86,7 @@ jobs:
           sudo e2fsck -fy "$PARTITION"
           sudo resize2fs "$PARTITION"
 
-          MNTPOINT=/mnt/APP
+          echo "MNTPOINT=/mnt/APP" >> $GITHUB_ENV
           sudo mkdir -p "$MNTPOINT"
           sudo mount "$PARTITION" "$MNTPOINT"
 
@@ -174,5 +173,63 @@ jobs:
       #     sudo umount /mnt/APP/proc/ || true
       #     sudo umount /mnt/APP/proc/ || true
       #     sudo umount /mnt/APP/run/docker.sock || true
-    
-    # Optionally add steps to commit/push file if required
+
+
+    - name: unmount and detach the loop device when done
+      run: |
+        sudo umount "$MNTPOINT"
+        sudo losetup -d "$LOOPDEV"
+
+    - name: Compress image for faster upload
+      run: |
+        cd $GITHUB_WORKSPACE
+        echo "Compressing image for upload..."
+        pigz "jetson-orin-nano-devkit-super_*.img"
+        ls -lht "jetson-orin-nano-devkit-super_*.img.gz"
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: jetson-orin-nano-image-${{ github.run_number }}
+        path: |
+          jetson-orin-nano-devkit-super_*.img.gz
+          jetson-orin-nano-devkit-super_*.img.sha256
+          # jetson-orin-nano-devkit-super_*.img.info
+        retention-days: 30
+
+    - name: Create release on tag
+      uses: softprops/action-gh-release@v2
+      if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'release'
+      with:
+        files: |
+          jetson-orin-nano-devkit-super_*.img.gz
+          jetson-orin-nano-devkit-super_*.img.sha256
+          # jetson-orin-nano-devkit-super_*.img.info
+        body: |
+          ## Jetson ${{ env.IMAGE_TYPE }} Image
+
+          This release contains a custom ${{ env.IMAGE_TYPE }} image for the NVIDIA ${{ env.JETSON_TYPE }}.
+
+          ### What's Included
+          - L4T Version: ${{ env.L4T_MAJOR_VERSION }}.${{ env.L4T_MINOR_VERSION }}
+          - Ubuntu 22.04 LTS ARM64
+          - Custom development packages
+          - Docker pre-installed
+          - Default user: ${{ env.OEM_USER }}/jetson
+
+          ### Installation
+          1. Download the `.img.gz` file
+          2. Extract using: `xz -d filename.img.gz`
+          3. Flash to ${{ env.IMAGE_TYPE }} using Raspberry Pi Imager or dd
+          4. insert memory into your Jetson
+          5. Boot your ${{ env.JETSON_TYPE }}
+
+          ### Files
+          - `*.img.gz` - Compressed ${{ env.IMAGE_TYPE }} image
+          - `*.sha256` - Checksum for verification
+          - `*.info` - Build and usage information
+
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
