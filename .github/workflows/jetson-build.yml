@@ -62,7 +62,7 @@ jobs:
 
     - name: Extract image file
       run: |
-        FILE=$(ls $IMAGE_NAME | head -n 1)
+        FILE=$(ls *.img.gz 2>/dev/null | head -n 1 | sed 's/\.gz$//')
         echo "IMAGE_NAME=$FILE" >> $GITHUB_ENV
         gzip -d $FILE.gz
 
