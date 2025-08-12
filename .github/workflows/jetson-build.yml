@@ -61,7 +61,10 @@ jobs:
         ls -alh
 
     - name: Extract image file
-      run: gzip -d jetson-orin-nano-devkit-super_*.img.gz
+      run: |
+        FILE=$(ls $IMAGE_NAME | head -n 1)
+        echo "IMAGE_NAME=$FILE" >> $GITHUB_ENV
+        gzip -d $FILE.gz
 
     - name: List files in current directory
       run: |
@@ -70,11 +73,11 @@ jobs:
 
     - name: Expand the disk image file by 10GB
       run: |
-        truncate -s +10G jetson-orin-nano-devkit-super_*.img
+        truncate -s +10G $IMAGE_NAME
 
     - name: Setup a loop device, expand the partition and mount it
       run: |
-        LOOPDEV=$(sudo losetup -Pf --show jetson-orin-nano-devkit-super_*.img)
+        LOOPDEV=$(sudo losetup -Pf --show $IMAGE_NAME)
         echo "LOOPDEV=${LOOPDEV}" >> $GITHUB_ENV
         echo "LOOPDEV is set to: $LOOPDEV"
 
@@ -192,17 +195,17 @@ jobs:
       run: |
         cd $GITHUB_WORKSPACE
         echo "Compressing image for upload..."
-        pigz "jetson-orin-nano-devkit-super_*.img"
-        ls -lht "jetson-orin-nano-devkit-super_*.img.gz"
+        pigz "$IMAGE_NAME"
+        ls -lht "$IMAGE_NAME.gz"
 
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
       with:
         name: jetson-orin-nano-image-${{ github.run_number }}
         path: |
-          jetson-orin-nano-devkit-super_*.img.gz
-          jetson-orin-nano-devkit-super_*.img.sha256
-          # jetson-orin-nano-devkit-super_*.img.info
+          $IMAGE_NAME.gz
+          $IMAGE_NAME.sha256
+          # $IMAGE_NAME.info
         retention-days: 30
 
     - name: Create release on tag
@@ -210,9 +213,9 @@ jobs:
       if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'release'
       with:
         files: |
-          jetson-orin-nano-devkit-super_*.img.gz
-          jetson-orin-nano-devkit-super_*.img.sha256
-          # jetson-orin-nano-devkit-super_*.img.info
+          $IMAGE_NAME.gz
+          $IMAGE_NAME.sha256
+          # $IMAGE_NAME.info
         body: |
           ## Jetson ${{ env.IMAGE_TYPE }} Image
 
