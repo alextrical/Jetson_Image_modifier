@@ -14,165 +14,165 @@ jobs:
     # runs-on: self-hosted
     runs-on: ubuntu-latest
     steps:
-      - name: Disable man-db to make package install and removal faster
-        run: |
-          echo 'set man-db/auto-update false' | sudo debconf-communicate >/dev/null
-          sudo dpkg-reconfigure man-db
+    - name: Disable man-db to make package install and removal faster
+      run: |
+        echo 'set man-db/auto-update false' | sudo debconf-communicate >/dev/null
+        sudo dpkg-reconfigure man-db
 
-      # - name: Free Disk Space
-      #   # uses: jlumbroso/free-disk-space@main
-      #   uses: jayllyz/free-disk-space@perf/use-rmz
-      #   with:
-      #     tool-cache: true
-      #     android: true
-      #     dotnet: true
-      #     haskell: true
-      #     large-packages: true
-      #     docker-images: false
-      #     swap-storage: true
+    # - name: Free Disk Space
+    #   # uses: jlumbroso/free-disk-space@main
+    #   uses: jayllyz/free-disk-space@perf/use-rmz
+    #   with:
+    #     tool-cache: true
+    #     android: true
+    #     dotnet: true
+    #     haskell: true
+    #     large-packages: true
+    #     docker-images: false
+    #     swap-storage: true
 
-      - name: Checkout repository
-        uses: actions/checkout@v4
+    - name: Checkout repository
+      uses: actions/checkout@v4
 
-      - name: Install dependencies on host
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            qemu-user-static \
-            binfmt-support
+    - name: Install dependencies on host
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          qemu-user-static \
+          binfmt-support
 
-      - name: Set up QEMU for ARM64 emulation
-        run: |
-          sudo update-binfmts --enable qemu-aarch64
-          docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
-          
-      - name: Download release asset from latest release
-        uses: robinraju/release-downloader@v1
-        with:
-          repository: 'alextrical/Jetson_Image_builder'  # replace with target repo owner/name
-          latest: true              # ensures file is downloaded from latest release
-          fileName: 'jetson-orin-nano-devkit-super_*.img.gz'  # wildcard pattern for file
-          out-file-path: '.'        # directory to place the downloaded file
-          token: ${{ secrets.GITHUB_TOKEN }}  # GitHub token for access
-
-      - name: List files in current directory
-        run: |
-          echo "Listing files in $(pwd):"
-          ls -alh
-
-      - name: Extract image file
-        run: gzip -d jetson-orin-nano-devkit-super_*.img.gz
-
-      - name: List files in current directory
-        run: |
-          echo "Listing files in $(pwd):"
-          ls -alh
-
-      - name: Expand the disk image file by 10GB
-        run: |
-          truncate -s +10G jetson-orin-nano-devkit-super_*.img
-
-      - name: Setup a loop device, expand the partition and mount it
-        run: |
-          echo "LOOPDEV=$(sudo losetup -Pf --show jetson-orin-nano-devkit-super_*.img)" >> $GITHUB_ENV
-          echo "LOOPDEV is set to: $LOOPDEV"
-
-          PARTITION=$LOOPDEV"p1"
-          #expand partition 1
-          sudo growpart "$LOOPDEV" 1
-          #Inform the kernel of partition table changes:
-          sudo partprobe "$LOOPDEV"
-          #resize partition
-          sudo e2fsck -fy "$PARTITION"
-          sudo resize2fs "$PARTITION"
-
-          echo "MNTPOINT=/mnt/APP" >> $GITHUB_ENV
-          sudo mkdir -p "$MNTPOINT"
-          sudo mount "$PARTITION" "$MNTPOINT"
-
-          #tmp doesn't exist yet, so lets make it
-          sudo mkdir /mnt/APP/tmp
-          sudo chmod 1777 /mnt/APP/tmp
-
-          df -h /mnt/APP
-
-
-
-      - name: Stop host docker
-        run: |
-          sudo systemctl stop docker
-          sudo systemctl stop docker.socket
-          sudo systemctl stop containerd
-
-      - name: Create Docker daemon.json
-        run: |
-          echo '{
-            "data-root": "/mnt/APP/var/lib/docker"
-          }' | sudo tee /etc/docker/daemon.json > /dev/null
-
-      - name: Start host docker
-        run: |
-          sudo systemctl daemon-reload
-          sudo systemctl start docker
-
-      - name: Stat docker data root
-        run: |
-          df -h /mnt/APP/var/lib/docker
-
-      - name: Pull an docker image
-        run: |
-          docker pull ghcr.io/music-assistant/server:latest
-          docker images -a
-
-      - name: Stat docker data root
-        run: |
-          df -h /mnt/APP/var/lib/docker
+    - name: Set up QEMU for ARM64 emulation
+      run: |
+        sudo update-binfmts --enable qemu-aarch64
+        docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
         
+    - name: Download release asset from latest release
+      uses: robinraju/release-downloader@v1
+      with:
+        repository: 'alextrical/Jetson_Image_builder'  # replace with target repo owner/name
+        latest: true              # ensures file is downloaded from latest release
+        fileName: 'jetson-orin-nano-devkit-super_*.img.gz'  # wildcard pattern for file
+        out-file-path: '.'        # directory to place the downloaded file
+        token: ${{ secrets.GITHUB_TOKEN }}  # GitHub token for access
 
-      # - name: Add custom packages to rootfs
-      #   run: |
-      #     # Install additional packages in rootfs using chroot
-      #     echo "Setting up chroot environment..."
-      #     sudo cp /usr/bin/qemu-aarch64-static /mnt/APP/usr/bin/
+    - name: List files in current directory
+      run: |
+        echo "Listing files in $(pwd):"
+        ls -alh
 
-      #     # Create any mount points that dont exist
-      #     sudo touch /mnt/APP/run/docker.sock
+    - name: Extract image file
+      run: gzip -d jetson-orin-nano-devkit-super_*.img.gz
 
-      #     # Mount necessary filesystems for chroot
-      #     sudo mount --bind /dev /mnt/APP/dev/
-      #     sudo mount --bind /sys /mnt/APP/sys/
-      #     sudo mount --bind /proc /mnt/APP/proc/
-      #     sudo mount --bind /dev/pts /mnt/APP/dev/pts/
-      #     sudo mount --bind /var/run/docker.sock /mnt/APP/run/docker.sock
+    - name: List files in current directory
+      run: |
+        echo "Listing files in $(pwd):"
+        ls -alh
 
-      #     # Copy resolv.conf for network access in chroot
-      #     sudo cp /etc/resolv.conf /mnt/APP/etc/resolv.conf.bak
-      #     sudo cp /etc/resolv.conf /mnt/APP/etc/resolv.conf
+    - name: Expand the disk image file by 10GB
+      run: |
+        truncate -s +10G jetson-orin-nano-devkit-super_*.img
 
-      #     # Copy script to install packages in chroot
-      #     echo "Copying test.sh file from scripts..."
-      #     cp ${{ github.workspace }}/scripts/test.sh test.sh
+    - name: Setup a loop device, expand the partition and mount it
+      run: |
+        echo "LOOPDEV=$(sudo losetup -Pf --show jetson-orin-nano-devkit-super_*.img)" >> $GITHUB_ENV
+        echo "LOOPDEV is set to: $LOOPDEV"
+
+        PARTITION=$LOOPDEV"p1"
+        #expand partition 1
+        sudo growpart "$LOOPDEV" 1
+        #Inform the kernel of partition table changes:
+        sudo partprobe "$LOOPDEV"
+        #resize partition
+        sudo e2fsck -fy "$PARTITION"
+        sudo resize2fs "$PARTITION"
+
+        echo "MNTPOINT=/mnt/APP" >> $GITHUB_ENV
+        sudo mkdir -p "$MNTPOINT"
+        sudo mount "$PARTITION" "$MNTPOINT"
+
+        #tmp doesn't exist yet, so lets make it
+        sudo mkdir /mnt/APP/tmp
+        sudo chmod 1777 /mnt/APP/tmp
+
+        df -h /mnt/APP
+
+
+
+    - name: Stop host docker
+      run: |
+        sudo systemctl stop docker
+        sudo systemctl stop docker.socket
+        sudo systemctl stop containerd
+
+    - name: Create Docker daemon.json
+      run: |
+        echo '{
+          "data-root": "/mnt/APP/var/lib/docker"
+        }' | sudo tee /etc/docker/daemon.json > /dev/null
+
+    - name: Start host docker
+      run: |
+        sudo systemctl daemon-reload
+        sudo systemctl start docker
+
+    - name: Stat docker data root
+      run: |
+        df -h /mnt/APP/var/lib/docker
+
+    - name: Pull an docker image
+      run: |
+        docker pull ghcr.io/music-assistant/server:latest
+        docker images -a
+
+    - name: Stat docker data root
+      run: |
+        df -h /mnt/APP/var/lib/docker
       
-      #     # Make script executable and run it in chroot
-      #     chmod +x test.sh
-      #     sudo cp test.sh /mnt/APP/tmp/
-      #     # sudo chroot /mnt/APP /bin/bash -c "ls -l"
-      #     # sudo chroot /mnt/APP /bin/bash -c "ls -l /var/run"
-      #     # sudo chroot /mnt/APP /bin/bash -c "ls -l /run"
-      #     sudo chroot /mnt/APP /tmp/test.sh
 
-      #     # Clean up chroot
-      #     sudo rm -f /mnt/APP/tmp/test.sh
-      #     sudo rm -f /mnt/APP/etc/resolv.conf
-      #     sudo mv /mnt/APP/etc/resolv.conf.bak /mnt/APP/etc/resolv.conf
+    # - name: Add custom packages to rootfs
+    #   run: |
+    #     # Install additional packages in rootfs using chroot
+    #     echo "Setting up chroot environment..."
+    #     sudo cp /usr/bin/qemu-aarch64-static /mnt/APP/usr/bin/
 
-      #     # Unmount filesystems
-      #     sudo umount /mnt/APP/dev/pts/ || true
-      #     sudo umount /mnt/APP/dev/ || true
-      #     sudo umount /mnt/APP/sys/ || true
-      #     sudo umount /mnt/APP/proc/ || true
-      #     sudo umount /mnt/APP/proc/ || true
-      #     sudo umount /mnt/APP/run/docker.sock || true
+    #     # Create any mount points that dont exist
+    #     sudo touch /mnt/APP/run/docker.sock
+
+    #     # Mount necessary filesystems for chroot
+    #     sudo mount --bind /dev /mnt/APP/dev/
+    #     sudo mount --bind /sys /mnt/APP/sys/
+    #     sudo mount --bind /proc /mnt/APP/proc/
+    #     sudo mount --bind /dev/pts /mnt/APP/dev/pts/
+    #     sudo mount --bind /var/run/docker.sock /mnt/APP/run/docker.sock
+
+    #     # Copy resolv.conf for network access in chroot
+    #     sudo cp /etc/resolv.conf /mnt/APP/etc/resolv.conf.bak
+    #     sudo cp /etc/resolv.conf /mnt/APP/etc/resolv.conf
+
+    #     # Copy script to install packages in chroot
+    #     echo "Copying test.sh file from scripts..."
+    #     cp ${{ github.workspace }}/scripts/test.sh test.sh
+    
+    #     # Make script executable and run it in chroot
+    #     chmod +x test.sh
+    #     sudo cp test.sh /mnt/APP/tmp/
+    #     # sudo chroot /mnt/APP /bin/bash -c "ls -l"
+    #     # sudo chroot /mnt/APP /bin/bash -c "ls -l /var/run"
+    #     # sudo chroot /mnt/APP /bin/bash -c "ls -l /run"
+    #     sudo chroot /mnt/APP /tmp/test.sh
+
+    #     # Clean up chroot
+    #     sudo rm -f /mnt/APP/tmp/test.sh
+    #     sudo rm -f /mnt/APP/etc/resolv.conf
+    #     sudo mv /mnt/APP/etc/resolv.conf.bak /mnt/APP/etc/resolv.conf
+
+    #     # Unmount filesystems
+    #     sudo umount /mnt/APP/dev/pts/ || true
+    #     sudo umount /mnt/APP/dev/ || true
+    #     sudo umount /mnt/APP/sys/ || true
+    #     sudo umount /mnt/APP/proc/ || true
+    #     sudo umount /mnt/APP/proc/ || true
+    #     sudo umount /mnt/APP/run/docker.sock || true
 
 
     - name: unmount and detach the loop device when done
