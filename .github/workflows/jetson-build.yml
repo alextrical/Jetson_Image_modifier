@@ -55,21 +55,16 @@ jobs:
         out-file-path: '.'        # directory to place the downloaded file
         token: ${{ secrets.GITHUB_TOKEN }}  # GitHub token for access
 
-    - name: List files in current directory
-      run: |
-        echo "Listing files in $(pwd):"
-        ls -alh
-
     - name: Extract image file
       run: |
         FILE=$(ls *.img.gz 2>/dev/null | head -n 1 | sed 's/\.gz$//')
         echo "IMAGE_NAME=$FILE" >> $GITHUB_ENV
         gzip -d $FILE.gz
 
-    - name: List files in current directory
-      run: |
-        echo "Listing files in $(pwd):"
-        ls -alh
+    # - name: List files in current directory
+    #   run: |
+    #     echo "Listing files in $(pwd):"
+    #     ls -alh
 
     - name: Expand the disk image file by 10GB
       run: |
@@ -100,8 +95,6 @@ jobs:
         sudo chmod 1777 /mnt/APP/tmp
 
         df -h /mnt/APP
-
-
 
     - name: Stop host docker
       run: |
@@ -197,6 +190,11 @@ jobs:
         echo "Compressing image for upload..."
         pigz "$IMAGE_NAME"
         ls -lht "$IMAGE_NAME.gz"
+
+    - name: List files in current directory
+      run: |
+        echo "Listing files in $(pwd):"
+        ls -alh
 
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
