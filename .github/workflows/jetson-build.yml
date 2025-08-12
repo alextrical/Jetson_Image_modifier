@@ -84,9 +84,9 @@ jobs:
           #Inform the kernel of partition table changes:
           sudo partprobe "$LOOPDEV"
           #resize partition
-          sudo e2fsck -f "$PARTITION"
+          sudo e2fsck -fy "$PARTITION"
           sudo resize2fs "$PARTITION"
-          
+
           MNTPOINT=/mnt/APP
           sudo mkdir -p "$MNTPOINT"
           sudo mount "$PARTITION" "$MNTPOINT"
