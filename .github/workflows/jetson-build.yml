@@ -97,49 +97,82 @@ jobs:
 
           df -h /mnt/APP
 
-      - name: Add custom packages to rootfs
+
+
+      - name: Stop host docker
         run: |
-          # Install additional packages in rootfs using chroot
-          echo "Setting up chroot environment..."
-          sudo cp /usr/bin/qemu-aarch64-static /mnt/APP/usr/bin/
+          sudo systemctl stop docker
+          sudo systemctl stop docker.socket
+          sudo systemctl stop containerd
 
-          # Create any mount points that dont exist
-          sudo touch /mnt/APP/run/docker.sock
+      - name: Create Docker daemon.json
+        run: |
+          echo '{
+            "data-root": "/mnt/APP/var/lib/docker"
+          }' | sudo tee /etc/docker/daemon.json > /dev/null
 
-          # Mount necessary filesystems for chroot
-          sudo mount --bind /dev /mnt/APP/dev/
-          sudo mount --bind /sys /mnt/APP/sys/
-          sudo mount --bind /proc /mnt/APP/proc/
-          sudo mount --bind /dev/pts /mnt/APP/dev/pts/
-          sudo mount --bind /var/run/docker.sock /mnt/APP/run/docker.sock
+      - name: Start host docker
+        run: |
+          sudo systemctl daemon-reload
+          sudo systemctl start docker
 
-          # Copy resolv.conf for network access in chroot
-          sudo cp /etc/resolv.conf /mnt/APP/etc/resolv.conf.bak
-          sudo cp /etc/resolv.conf /mnt/APP/etc/resolv.conf
+      - name: Stat docker data root
+        run: |
+          df -h /mnt/APP/var/lib/docker
 
-          # Copy script to install packages in chroot
-          echo "Copying test.sh file from scripts..."
-          cp ${{ github.workspace }}/scripts/test.sh test.sh
+      - name: Pull an docker image
+        run: |
+          docker pull ghcr.io/music-assistant/server:latest
+          docker images -a
+
+      - name: Stat docker data root
+        run: |
+          df -h /mnt/APP/var/lib/docker
+        
+
+      # - name: Add custom packages to rootfs
+      #   run: |
+      #     # Install additional packages in rootfs using chroot
+      #     echo "Setting up chroot environment..."
+      #     sudo cp /usr/bin/qemu-aarch64-static /mnt/APP/usr/bin/
+
+      #     # Create any mount points that dont exist
+      #     sudo touch /mnt/APP/run/docker.sock
+
+      #     # Mount necessary filesystems for chroot
+      #     sudo mount --bind /dev /mnt/APP/dev/
+      #     sudo mount --bind /sys /mnt/APP/sys/
+      #     sudo mount --bind /proc /mnt/APP/proc/
+      #     sudo mount --bind /dev/pts /mnt/APP/dev/pts/
+      #     sudo mount --bind /var/run/docker.sock /mnt/APP/run/docker.sock
+
+      #     # Copy resolv.conf for network access in chroot
+      #     sudo cp /etc/resolv.conf /mnt/APP/etc/resolv.conf.bak
+      #     sudo cp /etc/resolv.conf /mnt/APP/etc/resolv.conf
+
+      #     # Copy script to install packages in chroot
+      #     echo "Copying test.sh file from scripts..."
+      #     cp ${{ github.workspace }}/scripts/test.sh test.sh
       
-          # Make script executable and run it in chroot
-          chmod +x test.sh
-          sudo cp test.sh /mnt/APP/tmp/
-          # sudo chroot /mnt/APP /bin/bash -c "ls -l"
-          # sudo chroot /mnt/APP /bin/bash -c "ls -l /var/run"
-          # sudo chroot /mnt/APP /bin/bash -c "ls -l /run"
-          sudo chroot /mnt/APP /tmp/test.sh
+      #     # Make script executable and run it in chroot
+      #     chmod +x test.sh
+      #     sudo cp test.sh /mnt/APP/tmp/
+      #     # sudo chroot /mnt/APP /bin/bash -c "ls -l"
+      #     # sudo chroot /mnt/APP /bin/bash -c "ls -l /var/run"
+      #     # sudo chroot /mnt/APP /bin/bash -c "ls -l /run"
+      #     sudo chroot /mnt/APP /tmp/test.sh
 
-          # Clean up chroot
-          sudo rm -f /mnt/APP/tmp/test.sh
-          sudo rm -f /mnt/APP/etc/resolv.conf
-          sudo mv /mnt/APP/etc/resolv.conf.bak /mnt/APP/etc/resolv.conf
+      #     # Clean up chroot
+      #     sudo rm -f /mnt/APP/tmp/test.sh
+      #     sudo rm -f /mnt/APP/etc/resolv.conf
+      #     sudo mv /mnt/APP/etc/resolv.conf.bak /mnt/APP/etc/resolv.conf
 
-          # Unmount filesystems
-          sudo umount /mnt/APP/dev/pts/ || true
-          sudo umount /mnt/APP/dev/ || true
-          sudo umount /mnt/APP/sys/ || true
-          sudo umount /mnt/APP/proc/ || true
-          sudo umount /mnt/APP/proc/ || true
-          sudo umount /mnt/APP/run/docker.sock || true
+      #     # Unmount filesystems
+      #     sudo umount /mnt/APP/dev/pts/ || true
+      #     sudo umount /mnt/APP/dev/ || true
+      #     sudo umount /mnt/APP/sys/ || true
+      #     sudo umount /mnt/APP/proc/ || true
+      #     sudo umount /mnt/APP/proc/ || true
+      #     sudo umount /mnt/APP/run/docker.sock || true
     
     # Optionally add steps to commit/push file if required
