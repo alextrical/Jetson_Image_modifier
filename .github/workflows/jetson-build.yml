@@ -38,7 +38,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            qemu-user-static
+            qemu-user-static \
+            binfmt-support
 
       - name: Set up QEMU for ARM64 emulation
         run: |
