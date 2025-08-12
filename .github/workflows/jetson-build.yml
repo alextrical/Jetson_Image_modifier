@@ -72,13 +72,12 @@ jobs:
         run: |
           truncate -s +10G jetson-orin-nano-devkit-super_*.img
 
-      - name: Setup a loop device
+      - name: Setup a loop device, expand the partition and mount it
         run: |
           LOOPDEV=$(sudo losetup -Pf --show jetson-orin-nano-devkit-super_*.img)
-          echo $LOOPDEV
 
-      - name: Expand the partition
-        run: |
+          echo "LOOPDEV is set to: $LOOPDEV"
+
           PARTITION=$LOOPDEV"p1"
           #expand partition 1
           sudo growpart "$LOOPDEV" 1
@@ -87,9 +86,7 @@ jobs:
           #resize partition
           sudo e2fsck -f "$PARTITION"
           sudo resize2fs "$PARTITION"
-
-      - name: Mount the expanded partition
-        run: |
+          
           MNTPOINT=/mnt/APP
           sudo mkdir -p "$MNTPOINT"
           sudo mount "$PARTITION" "$MNTPOINT"
