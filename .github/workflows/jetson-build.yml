@@ -103,6 +103,9 @@ jobs:
           echo "Setting up chroot environment..."
           sudo cp /usr/bin/qemu-aarch64-static /mnt/APP/usr/bin/
 
+          # Create any mount points that dont exist
+          sudo touch rootfs/run/docker.sock
+
           # Mount necessary filesystems for chroot
           sudo mount --bind /dev /mnt/APP/dev/
           sudo mount --bind /sys /mnt/APP/sys/
