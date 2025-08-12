@@ -1,0 +1,30 @@
+name: Build Jetson Orin Nano Disk Image
+
+on:
+  release:
+    types: [published]
+  push:
+    branches: [ main, master, selfhosted ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  fetch-file:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download release asset from latest release
+        uses: robinraju/release-downloader@v1
+        with:
+          repository: 'alextrical/Jetson_Image_builder'  # replace with target repo owner/name
+          latest: true              # ensures file is downloaded from latest release
+          fileName: 'jetson-orin-nano-devkit-super_*.img.gz'  # wildcard pattern for file
+          out-file-path: '.'        # directory to place the downloaded file
+          token: ${{ secrets.GITHUB_TOKEN }}  # GitHub token for access
+
+      - name: List files in current directory
+        run: |
+          echo "Listing files in $(pwd):"
+          ls -al
+    
+    # Optionally add steps to commit/push file if required
