@@ -109,17 +109,17 @@ jobs:
           sudo cp /etc/resolv.conf /mnt/APP/etc/resolv.conf
 
           # Copy script to install packages in chroot
-          echo "Copying [file].sh file from scripts..."
-          #cp ${{ github.workspace }}/scripts/[file].sh [file].sh
+          echo "Copying test.sh file from scripts..."
+          cp ${{ github.workspace }}/scripts/test.sh test.sh
       
           # Make script executable and run it in chroot
-          # chmod +x [file].sh
-          # sudo cp [file].sh /mnt/APP/tmp/
-          # sudo chroot /mnt/APP /tmp/[file].sh
-          sudo chroot /mnt/APP /bin/bash -c "ls -l"
+          chmod +x test.sh
+          sudo cp test.sh /mnt/APP/tmp/
+          sudo chroot /mnt/APP /tmp/test.sh
+          # sudo chroot /mnt/APP /bin/bash -c "ls -l"
 
           # Clean up chroot
-          # sudo rm -f /mnt/APP/tmp/[file].sh
+          sudo rm -f /mnt/APP/tmp/test.sh
           sudo rm -f /mnt/APP/etc/resolv.conf
           sudo mv /mnt/APP/etc/resolv.conf.bak /mnt/APP/etc/resolv.conf
 
