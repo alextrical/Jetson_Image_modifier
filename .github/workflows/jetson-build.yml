@@ -19,17 +19,17 @@ jobs:
         echo 'set man-db/auto-update false' | sudo debconf-communicate >/dev/null
         sudo dpkg-reconfigure man-db
 
-    # - name: Free Disk Space
-    #   # uses: jlumbroso/free-disk-space@main
-    #   uses: jayllyz/free-disk-space@perf/use-rmz
-    #   with:
-    #     tool-cache: true
-    #     android: true
-    #     dotnet: true
-    #     haskell: true
-    #     large-packages: true
-    #     docker-images: false
-    #     swap-storage: true
+    - name: Free Disk Space
+      # uses: jlumbroso/free-disk-space@main
+      uses: jayllyz/free-disk-space@perf/use-rmz
+      with:
+        tool-cache: true
+        android: true
+        dotnet: true
+        haskell: true
+        large-packages: true
+        docker-images: false
+        swap-storage: true
 
     - name: Checkout repository
       uses: actions/checkout@v4
@@ -38,8 +38,17 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y \
+          binfmt-support \
+          parted \
+          util-linux \
+          docker \
+          docker.io \
+          containerd \
+          pigz \
           qemu-user-static \
-          binfmt-support
+          pv \
+          gh \
+          cloud-guest-utils
 
     - name: Set up QEMU for ARM64 emulation
       run: |
@@ -51,30 +60,31 @@ jobs:
       with:
         repository: 'alextrical/Jetson_Image_builder'  # replace with target repo owner/name
         latest: true              # ensures file is downloaded from latest release
-        fileName: 'jetson-orin-nano-devkit-super_*.img.gz'  # wildcard pattern for file
+        fileName: 'jetson-orin-nano-devkit-super.img.gz.*'  # wildcard pattern for file
         out-file-path: '.'        # directory to place the downloaded file
         token: ${{ secrets.GITHUB_TOKEN }}  # GitHub token for access
 
     - name: Extract image file
       run: |
-        FILE=$(ls *.img.gz 2>/dev/null | head -n 1 | sed 's/\.gz$//')
+        FILE=nexus_NVME.img
         echo "IMAGE_NAME=$FILE" >> $GITHUB_ENV
-        gzip -d $FILE.gz
+
+        cat jetson-orin-nano-devkit-super.img.gz.* | pigz -d > $FILE
 
     # - name: List files in current directory
     #   run: |
     #     echo "Listing files in $(pwd):"
     #     ls -alh
 
-    - name: Expand the disk image file by 10GB
+    - name: Expand the disk image file by 20GB
       run: |
-        truncate -s +10G $IMAGE_NAME
+        truncate -s +20G $IMAGE_NAME
 
     - name: Setup a loop device, expand the partition and mount it
       run: |
         LOOPDEV=$(sudo losetup -Pf --show $IMAGE_NAME)
         echo "LOOPDEV=${LOOPDEV}" >> $GITHUB_ENV
-        echo "LOOPDEV is set to: $LOOPDEV"
+        # echo "LOOPDEV is set to: $LOOPDEV"
 
         PARTITION=$LOOPDEV"p1"
         #expand partition 1
@@ -85,27 +95,24 @@ jobs:
         sudo e2fsck -fy "$PARTITION"
         sudo resize2fs "$PARTITION"
 
-        MNTPOINT=/mnt/APP
+        MNTPOINT=/mnt/rootfs
         echo "MNTPOINT=${MNTPOINT}" >> $GITHUB_ENV
         sudo mkdir -p "$MNTPOINT"
         sudo mount "$PARTITION" "$MNTPOINT"
 
-        #tmp doesn't exist yet, so lets make it
-        sudo mkdir /mnt/APP/tmp
-        sudo chmod 1777 /mnt/APP/tmp
-
-        df -h /mnt/APP
+        # df -h $MNTPOINT
 
     - name: Stop host docker
       run: |
         sudo systemctl stop docker
-        sudo systemctl stop docker.socket
-        sudo systemctl stop containerd
+        # sudo systemctl stop docker.socket
+        # sudo systemctl stop containerd
 
     - name: Create Docker daemon.json
       run: |
+        sudo mkdir -p $MNTPOINT/var/lib/docker
         echo '{
-          "data-root": "/mnt/APP/var/lib/docker"
+          "data-root": "$MNTPOINT/var/lib/docker"
         }' | sudo tee /etc/docker/daemon.json > /dev/null
 
     - name: Start host docker
@@ -115,7 +122,7 @@ jobs:
 
     - name: Stat docker data root
       run: |
-        df -h /mnt/APP/var/lib/docker
+        df -h $MNTPOINT/var/lib/docker
 
     - name: Pull an docker image
       run: |
@@ -125,33 +132,33 @@ jobs:
     - name: Stop host docker
       run: |
         sudo systemctl stop docker
-        sudo systemctl stop docker.socket
-        sudo systemctl stop containerd
+        # sudo systemctl stop docker.socket
+        # sudo systemctl stop containerd
 
     - name: Stat docker data root
       run: |
-        df -h /mnt/APP/var/lib/docker
+        df -h $MNTPOINT/var/lib/docker
       
 
     # - name: Add custom packages to rootfs
     #   run: |
     #     # Install additional packages in rootfs using chroot
     #     echo "Setting up chroot environment..."
-    #     sudo cp /usr/bin/qemu-aarch64-static /mnt/APP/usr/bin/
+    #     sudo cp /usr/bin/qemu-aarch64-static $MNTPOINT/usr/bin/
 
     #     # Create any mount points that dont exist
-    #     sudo touch /mnt/APP/run/docker.sock
+    #     sudo touch $MNTPOINT/run/docker.sock
 
     #     # Mount necessary filesystems for chroot
-    #     sudo mount --bind /dev /mnt/APP/dev/
-    #     sudo mount --bind /sys /mnt/APP/sys/
-    #     sudo mount --bind /proc /mnt/APP/proc/
-    #     sudo mount --bind /dev/pts /mnt/APP/dev/pts/
-    #     sudo mount --bind /var/run/docker.sock /mnt/APP/run/docker.sock
+    #     sudo mount --bind /dev $MNTPOINT/dev/
+    #     sudo mount --bind /sys $MNTPOINT/sys/
+    #     sudo mount --bind /proc $MNTPOINT/proc/
+    #     sudo mount --bind /dev/pts $MNTPOINT/dev/pts/
+    #     sudo mount --bind /var/run/docker.sock $MNTPOINT/run/docker.sock
 
     #     # Copy resolv.conf for network access in chroot
-    #     sudo cp /etc/resolv.conf /mnt/APP/etc/resolv.conf.bak
-    #     sudo cp /etc/resolv.conf /mnt/APP/etc/resolv.conf
+    #     sudo cp /etc/resolv.conf $MNTPOINT/etc/resolv.conf.bak
+    #     sudo cp /etc/resolv.conf $MNTPOINT/etc/resolv.conf
 
     #     # Copy script to install packages in chroot
     #     echo "Copying test.sh file from scripts..."
@@ -159,24 +166,24 @@ jobs:
     
     #     # Make script executable and run it in chroot
     #     chmod +x test.sh
-    #     sudo cp test.sh /mnt/APP/tmp/
-    #     # sudo chroot /mnt/APP /bin/bash -c "ls -l"
-    #     # sudo chroot /mnt/APP /bin/bash -c "ls -l /var/run"
-    #     # sudo chroot /mnt/APP /bin/bash -c "ls -l /run"
-    #     sudo chroot /mnt/APP /tmp/test.sh
+    #     sudo cp test.sh $MNTPOINT/tmp/
+    #     # sudo chroot $MNTPOINT /bin/bash -c "ls -l"
+    #     # sudo chroot $MNTPOINT /bin/bash -c "ls -l /var/run"
+    #     # sudo chroot $MNTPOINT /bin/bash -c "ls -l /run"
+    #     sudo chroot $MNTPOINT /tmp/test.sh
 
     #     # Clean up chroot
-    #     sudo rm -f /mnt/APP/tmp/test.sh
-    #     sudo rm -f /mnt/APP/etc/resolv.conf
-    #     sudo mv /mnt/APP/etc/resolv.conf.bak /mnt/APP/etc/resolv.conf
+    #     sudo rm -f $MNTPOINT/tmp/test.sh
+    #     sudo rm -f $MNTPOINT/etc/resolv.conf
+    #     sudo mv $MNTPOINT/etc/resolv.conf.bak $MNTPOINT/etc/resolv.conf
 
     #     # Unmount filesystems
-    #     sudo umount /mnt/APP/dev/pts/ || true
-    #     sudo umount /mnt/APP/dev/ || true
-    #     sudo umount /mnt/APP/sys/ || true
-    #     sudo umount /mnt/APP/proc/ || true
-    #     sudo umount /mnt/APP/proc/ || true
-    #     sudo umount /mnt/APP/run/docker.sock || true
+    #     sudo umount $MNTPOINT/dev/pts/ || true
+    #     sudo umount $MNTPOINT/dev/ || true
+    #     sudo umount $MNTPOINT/sys/ || true
+    #     sudo umount $MNTPOINT/proc/ || true
+    #     sudo umount $MNTPOINT/proc/ || true
+    #     sudo umount $MNTPOINT/run/docker.sock || true
 
 
     - name: unmount and detach the loop device when done
@@ -188,8 +195,8 @@ jobs:
       run: |
         cd $GITHUB_WORKSPACE
         echo "Compressing image for upload..."
-        pigz "$IMAGE_NAME"
-        ls -lht "$IMAGE_NAME.gz"
+        pigz -c "${IMAGE_NAME}" | \
+            split -b 600M -d - "${IMAGE_NAME}.gz."
 
     - name: List files in current directory
       run: |
@@ -202,6 +209,17 @@ jobs:
         name: jetson-orin-nano-image-${{ github.run_number }}
         path: |
           ${{ env.IMAGE_NAME }}.gz
+          ${{ env.IMAGE_NAME }}.gz.00
+          ${{ env.IMAGE_NAME }}.gz.01
+          ${{ env.IMAGE_NAME }}.gz.02
+          ${{ env.IMAGE_NAME }}.gz.03
+          ${{ env.IMAGE_NAME }}.gz.04
+          ${{ env.IMAGE_NAME }}.gz.05
+          ${{ env.IMAGE_NAME }}.gz.06
+          ${{ env.IMAGE_NAME }}.gz.07
+          ${{ env.IMAGE_NAME }}.gz.08
+          ${{ env.IMAGE_NAME }}.gz.09
+          ${{ env.IMAGE_NAME }}.gz.10
           ${{ env.IMAGE_NAME }}.sha256
           ${{ env.IMAGE_NAME }}.info
         retention-days: 30
@@ -212,6 +230,17 @@ jobs:
       with:
         files: |
           ${{ env.IMAGE_NAME }}.gz
+          ${{ env.IMAGE_NAME }}.gz.00
+          ${{ env.IMAGE_NAME }}.gz.01
+          ${{ env.IMAGE_NAME }}.gz.02
+          ${{ env.IMAGE_NAME }}.gz.03
+          ${{ env.IMAGE_NAME }}.gz.04
+          ${{ env.IMAGE_NAME }}.gz.05
+          ${{ env.IMAGE_NAME }}.gz.06
+          ${{ env.IMAGE_NAME }}.gz.07
+          ${{ env.IMAGE_NAME }}.gz.08
+          ${{ env.IMAGE_NAME }}.gz.09
+          ${{ env.IMAGE_NAME }}.gz.10
           ${{ env.IMAGE_NAME }}.sha256
           ${{ env.IMAGE_NAME }}.info
         body: |
