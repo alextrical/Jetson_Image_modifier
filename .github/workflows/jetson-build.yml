@@ -41,7 +41,6 @@ jobs:
           binfmt-support \
           parted \
           util-linux \
-          docker \
           docker.io \
           containerd \
           pigz \
