@@ -69,6 +69,7 @@ jobs:
         echo "IMAGE_NAME=$FILE" >> $GITHUB_ENV
 
         cat jetson-orin-nano-devkit-super.img.gz.* | pigz -d > $FILE
+        rm jetson-orin-nano-devkit-super.img.gz.*
 
     # - name: List files in current directory
     #   run: |
@@ -109,9 +110,9 @@ jobs:
 
     - name: Create Docker daemon.json
       run: |
-        sudo mkdir -p $MNTPOINT/var/lib/docker
+        sudo mkdir -p ${{ env.MNTPOINT }}/var/lib/docker
         echo '{
-          "data-root": "$MNTPOINT/var/lib/docker"
+          "data-root": "${{ env.MNTPOINT }}/var/lib/docker"
         }' | sudo tee /etc/docker/daemon.json > /dev/null
 
     - name: Start host docker
@@ -121,7 +122,7 @@ jobs:
 
     - name: Stat docker data root
       run: |
-        df -h $MNTPOINT/var/lib/docker
+        df -h ${{ env.MNTPOINT }}/var/lib/docker
 
     - name: Pull an docker image
       run: |
@@ -136,28 +137,28 @@ jobs:
 
     - name: Stat docker data root
       run: |
-        df -h $MNTPOINT/var/lib/docker
+        df -h ${{ env.MNTPOINT }}/var/lib/docker
       
 
     # - name: Add custom packages to rootfs
     #   run: |
     #     # Install additional packages in rootfs using chroot
     #     echo "Setting up chroot environment..."
-    #     sudo cp /usr/bin/qemu-aarch64-static $MNTPOINT/usr/bin/
+    #     sudo cp /usr/bin/qemu-aarch64-static ${{ env.MNTPOINT }}/usr/bin/
 
     #     # Create any mount points that dont exist
-    #     sudo touch $MNTPOINT/run/docker.sock
+    #     sudo touch ${{ env.MNTPOINT }}/run/docker.sock
 
     #     # Mount necessary filesystems for chroot
-    #     sudo mount --bind /dev $MNTPOINT/dev/
-    #     sudo mount --bind /sys $MNTPOINT/sys/
-    #     sudo mount --bind /proc $MNTPOINT/proc/
-    #     sudo mount --bind /dev/pts $MNTPOINT/dev/pts/
-    #     sudo mount --bind /var/run/docker.sock $MNTPOINT/run/docker.sock
+    #     sudo mount --bind /dev ${{ env.MNTPOINT }}/dev/
+    #     sudo mount --bind /sys ${{ env.MNTPOINT }}/sys/
+    #     sudo mount --bind /proc ${{ env.MNTPOINT }}/proc/
+    #     sudo mount --bind /dev/pts ${{ env.MNTPOINT }}/dev/pts/
+    #     sudo mount --bind /var/run/docker.sock ${{ env.MNTPOINT }}/run/docker.sock
 
     #     # Copy resolv.conf for network access in chroot
-    #     sudo cp /etc/resolv.conf $MNTPOINT/etc/resolv.conf.bak
-    #     sudo cp /etc/resolv.conf $MNTPOINT/etc/resolv.conf
+    #     sudo cp /etc/resolv.conf ${{ env.MNTPOINT }}/etc/resolv.conf.bak
+    #     sudo cp /etc/resolv.conf ${{ env.MNTPOINT }}/etc/resolv.conf
 
     #     # Copy script to install packages in chroot
     #     echo "Copying test.sh file from scripts..."
@@ -165,37 +166,37 @@ jobs:
     
     #     # Make script executable and run it in chroot
     #     chmod +x test.sh
-    #     sudo cp test.sh $MNTPOINT/tmp/
-    #     # sudo chroot $MNTPOINT /bin/bash -c "ls -l"
-    #     # sudo chroot $MNTPOINT /bin/bash -c "ls -l /var/run"
-    #     # sudo chroot $MNTPOINT /bin/bash -c "ls -l /run"
-    #     sudo chroot $MNTPOINT /tmp/test.sh
+    #     sudo cp test.sh ${{ env.MNTPOINT }}/tmp/
+    #     # sudo chroot ${{ env.MNTPOINT }} /bin/bash -c "ls -l"
+    #     # sudo chroot ${{ env.MNTPOINT }} /bin/bash -c "ls -l /var/run"
+    #     # sudo chroot ${{ env.MNTPOINT }} /bin/bash -c "ls -l /run"
+    #     sudo chroot ${{ env.MNTPOINT }} /tmp/test.sh
 
     #     # Clean up chroot
-    #     sudo rm -f $MNTPOINT/tmp/test.sh
-    #     sudo rm -f $MNTPOINT/etc/resolv.conf
-    #     sudo mv $MNTPOINT/etc/resolv.conf.bak $MNTPOINT/etc/resolv.conf
+    #     sudo rm -f ${{ env.MNTPOINT }}/tmp/test.sh
+    #     sudo rm -f ${{ env.MNTPOINT }}/etc/resolv.conf
+    #     sudo mv ${{ env.MNTPOINT }}/etc/resolv.conf.bak ${{ env.MNTPOINT }}/etc/resolv.conf
 
     #     # Unmount filesystems
-    #     sudo umount $MNTPOINT/dev/pts/ || true
-    #     sudo umount $MNTPOINT/dev/ || true
-    #     sudo umount $MNTPOINT/sys/ || true
-    #     sudo umount $MNTPOINT/proc/ || true
-    #     sudo umount $MNTPOINT/proc/ || true
-    #     sudo umount $MNTPOINT/run/docker.sock || true
+    #     sudo umount ${{ env.MNTPOINT }}/dev/pts/ || true
+    #     sudo umount ${{ env.MNTPOINT }}/dev/ || true
+    #     sudo umount ${{ env.MNTPOINT }}/sys/ || true
+    #     sudo umount ${{ env.MNTPOINT }}/proc/ || true
+    #     sudo umount ${{ env.MNTPOINT }}/proc/ || true
+    #     sudo umount ${{ env.MNTPOINT }}/run/docker.sock || true
 
 
     - name: unmount and detach the loop device when done
       run: |
-        sudo umount "$MNTPOINT"
-        sudo losetup -d "$LOOPDEV"
+        sudo umount ${{ env.MNTPOINT }}
+        sudo losetup -d ${{ env.LOOPDEV }}
 
     - name: Compress image for faster upload
       run: |
         cd $GITHUB_WORKSPACE
         echo "Compressing image for upload..."
-        pigz -c "${IMAGE_NAME}" | \
-            split -b 600M -d - "${IMAGE_NAME}.gz."
+        pigz -c ${{ env.IMAGE_NAME }} | \
+            split -b 600M -d - ${{ env.IMAGE_NAME }}.gz.
 
     - name: List files in current directory
       run: |
