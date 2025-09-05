@@ -3,9 +3,6 @@ name: Connect to Github runner with SSH
 on:
   workflow_dispatch:
 
-with:
-  limit-access-to-actor: true           # Only the workflow initiator can connect
-
 jobs:
   debug:
     runs-on: ubuntu-latest
@@ -13,3 +10,5 @@ jobs:
       - uses: actions/checkout@v2
       - name: Setup upterm session for debugging
         uses: owenthereal/action-upterm@v1
+        with:
+          limit-access-to-actor: true           # Only the workflow initiator can connect
