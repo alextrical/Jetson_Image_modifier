@@ -1,0 +1,15 @@
+name: Cleanup Old Artifacts
+
+on:
+  workflow_dispatch:  # allows manual trigger
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Delete old artifacts except latest 2 runs
+        uses: jimschubert/delete-artifacts-action@v1
+        with:
+          keep-last: 2
+          delete-branch-artifacts: true
